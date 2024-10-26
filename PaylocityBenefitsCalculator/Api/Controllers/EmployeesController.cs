@@ -1,6 +1,4 @@
 ﻿using Api.ApplicationDbContext;
-using Api.Dtos.Dependent;
-using Api.Dtos.Employee;
 using Api.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
