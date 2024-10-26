@@ -1,7 +1,9 @@
-﻿using Api.Dtos.Dependent;
+﻿using Api.ApplicationDbContext;
+using Api.Dtos.Dependent;
 using Api.Dtos.Employee;
 using Api.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace Api.Controllers;
@@ -10,90 +12,119 @@ namespace Api.Controllers;
 [Route("api/v1/[controller]")]
 public class EmployeesController : ControllerBase
 {
+    private readonly AppDbContext _context;
+
+    public EmployeesController(AppDbContext context) {
+        _context = context;
+    }
+    
     [SwaggerOperation(Summary = "Get employee by id")]
     [HttpGet("{id}")]
-    public async Task<ActionResult<ApiResponse<GetEmployeeDto>>> Get(int id)
+    public async Task<ActionResult<ApiResponse<Employee>>> GetEmployee(int id)
     {
-        throw new NotImplementedException();
+        var employee = await _context.Employees.FindAsync(id);
+
+        if(employee == null)
+        {
+            return NotFound();
+        }
+
+        var dependents = from d in _context.Dependents
+                            where d.EmployeeId.Equals(employee.Id)
+                            select d;
+        employee.Dependents = dependents.ToList();
+
+        var result = new ApiResponse<Employee>
+        {
+            Data = employee,
+            Success = true
+        };
+
+        return result;
     }
 
     [SwaggerOperation(Summary = "Get all employees")]
     [HttpGet("")]
-    public async Task<ActionResult<ApiResponse<List<GetEmployeeDto>>>> GetAll()
+    public async Task<ActionResult<ApiResponse<List<Employee>>>> GetAllEmployees()
     {
         //task: use a more realistic production approach
-        var employees = new List<GetEmployeeDto>
-        {
-            new()
-            {
-                Id = 1,
-                FirstName = "LeBron",
-                LastName = "James",
-                Salary = 75420.99m,
-                DateOfBirth = new DateTime(1984, 12, 30)
-            },
-            new()
-            {
-                Id = 2,
-                FirstName = "Ja",
-                LastName = "Morant",
-                Salary = 92365.22m,
-                DateOfBirth = new DateTime(1999, 8, 10),
-                Dependents = new List<GetDependentDto>
-                {
-                    new()
-                    {
-                        Id = 1,
-                        FirstName = "Spouse",
-                        LastName = "Morant",
-                        Relationship = Relationship.Spouse,
-                        DateOfBirth = new DateTime(1998, 3, 3)
-                    },
-                    new()
-                    {
-                        Id = 2,
-                        FirstName = "Child1",
-                        LastName = "Morant",
-                        Relationship = Relationship.Child,
-                        DateOfBirth = new DateTime(2020, 6, 23)
-                    },
-                    new()
-                    {
-                        Id = 3,
-                        FirstName = "Child2",
-                        LastName = "Morant",
-                        Relationship = Relationship.Child,
-                        DateOfBirth = new DateTime(2021, 5, 18)
-                    }
-                }
-            },
-            new()
-            {
-                Id = 3,
-                FirstName = "Michael",
-                LastName = "Jordan",
-                Salary = 143211.12m,
-                DateOfBirth = new DateTime(1963, 2, 17),
-                Dependents = new List<GetDependentDto>
-                {
-                    new()
-                    {
-                        Id = 4,
-                        FirstName = "DP",
-                        LastName = "Jordan",
-                        Relationship = Relationship.DomesticPartner,
-                        DateOfBirth = new DateTime(1974, 1, 2)
-                    }
-                }
-            }
-        };
+        // Added SQLite db for storing of employee and dependant data
+        var employees = await _context.Employees.ToListAsync();
+        for (int i = 0; i < employees.Count; i++) {
+            var employee = employees[i];
+            var dependents = from d in _context.Dependents
+                                where d.EmployeeId.Equals(employee.Id)
+                                select d;
+            employee.Dependents = dependents.ToList();
+        }
 
-        var result = new ApiResponse<List<GetEmployeeDto>>
+        var result = new ApiResponse<List<Employee>>
         {
             Data = employees,
             Success = true
         };
 
         return result;
+    }
+
+    [SwaggerOperation(Summary = "Add employee")]
+    [HttpPost]
+    public async Task<ActionResult<Employee>> PostEmployee(Employee employee)
+    {
+        _context.Employees.Add(employee);
+        await _context.SaveChangesAsync();
+
+        return CreatedAtAction(nameof(GetEmployee), new { id = employee.Id }, employee);
+    }
+
+    [SwaggerOperation(Summary = "Update employee")]
+    [HttpPut("{id}")]
+    public async Task<IActionResult> PutEmployee(int id, Employee employee)
+    {
+        if(id != employee.Id)
+        {
+            return BadRequest();
+        }
+
+        _context.Entry(employee).State = EntityState.Modified;
+
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch(DbUpdateConcurrencyException)
+        {
+            if(!EmployeeExists(id))
+            {
+                return NotFound();
+            }
+            else
+            {
+                throw;
+            }
+        }
+
+        return NoContent();
+    }
+
+    [SwaggerOperation(Summary = "Delete employee")]
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> DeleteEmployee(int id)
+    {
+        var employee = await _context.Employees.FindAsync(id);
+        if(employee == null)
+        {
+            return NotFound();
+        }
+
+        _context.Employees.Remove(employee);
+        await _context.SaveChangesAsync();
+
+        return NoContent();
+    }
+
+    private bool EmployeeExists(int id)
+    {
+        return _context.Employees.Any(e => e.Id == id);
     }
 }

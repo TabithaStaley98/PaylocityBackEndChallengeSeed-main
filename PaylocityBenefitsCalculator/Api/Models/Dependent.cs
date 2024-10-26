@@ -8,5 +8,4 @@ public class Dependent
     public DateTime DateOfBirth { get; set; }
     public Relationship Relationship { get; set; }
     public int EmployeeId { get; set; }
-    public Employee? Employee { get; set; }
 }

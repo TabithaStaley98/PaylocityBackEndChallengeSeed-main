@@ -1,4 +1,6 @@
-﻿namespace Api.Models;
+﻿using Api.Dtos.Employee;
+
+namespace Api.Models;
 
 public class ApiResponse<T>
 {
@@ -6,4 +8,10 @@ public class ApiResponse<T>
     public bool Success { get; set; } = true;
     public string Message { get; set; } = string.Empty;
     public string Error { get; set; } = string.Empty;
+
+    public static implicit operator ApiResponse<T>(ApiResponse<List<GetEmployeeDto>> v)
+    {
+        throw new NotImplementedException();
+    }
+
 }
